@@ -27,6 +27,9 @@ Host it on your own server, define your workflow, install plugins and themes, an
     - Plugin Directory: [docs/Plugin-Directory.md](docs/Plugin-Directory.md)
 - Browse all docs: [docs/](docs/)
 - API docs: [piprapay.readme.io](https://piprapay.readme.io)
+- Explore PipraPay Demo: [https://demo.piprapay.com/admin/login](https://demo.piprapay.com/admin/login)
+   - username: `demo`
+   - password: `123456`
 
 ---
 
@@ -111,14 +114,26 @@ The cron job responsible for verifying payments is not running.
 ---
 
 <details>
+<summary>🔌 How to download PipraPay tool app</summary>
+
+**Solution:**  
+1. Downlolad from **PipraPay Tool** App from here. [Download Tool App](https://github.com/PipraPay/PipraPay-Open-Source-Web/blob/main/docs/apps/piprapay-tool.apk).  
+
+</details>
+
+---
+
+<details>
 <summary>🔌 PipraPay tool app is not connecting</summary>
 
 **Possible Cause:**  
-The base URL or webhook URL is not properly configured.  
+The webhook URL or app permission or app service is not properly configured.  
 
 **Solution:**  
-1. First, add your **base URL** (e.g., `https://example.com` or `https://pay.example.com`).  
-2. After setting the base URL, add the **full webhook URL**.  
+1. First, add your **full webhook URL** (e.g., `https://example.com/?webhook=**********` or `https://pay.example.com/?webhook=**********`).  
+2. Allow all permission from **PipraPay Tool** app info.  
+2. Allow background running.  
+2. Force stop the **PipraPay Tool** App after setup **webhook URL**, **App Permission**. Open **PipraPay Tool** App then check in admin panel.  
 
 </details>
 
