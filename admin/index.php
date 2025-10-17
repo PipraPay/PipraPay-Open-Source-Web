@@ -55,7 +55,7 @@
 ?>
         <script>location.href = "https://github.com/PipraPay/PipraPay-Open-Source-App/";</script>
 <?php
-        eixt();
+        exit();
     }
     
     if (function_exists('pp_trigger_hook')) {
