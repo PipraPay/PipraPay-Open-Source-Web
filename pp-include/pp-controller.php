@@ -141,7 +141,7 @@
         return null;
     }
 
-    function getCurrentDatetime($format = 'Y-m-d H:i:s') {
+function getCurrentDatetime($format = 'Y-m-d H:i:s') {
         $currentDatetime = new DateTime();
 
         return $currentDatetime->format($format);
@@ -188,7 +188,7 @@ function convertDateTime($datetime, $daysToSubtract = 0, $newHour = null, $newMi
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || 
                      $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
     
-        $host = $_SERVER['HTTP_HOST'];         // e.g., dev.builderpay.com
+        $host = $_SERVER['HTTP_HOST'];         // e.g., dev.piprapay.com
         $requestUri = $_SERVER['REQUEST_URI']; // e.g., /admin/view-transaction?p=13
     
         return $protocol . $host . $requestUri;
@@ -1285,42 +1285,42 @@ function convertDateTime($datetime, $daysToSubtract = 0, $newHour = null, $newMi
         return [
             'facebook_messenger' => [
                 'url' => $res['response'][0]['facebook_messenger'] ?? '',
-                'image' => 'https://cdn.builderhall.com/assets/socialicon/messenger.png',
+                'image' => 'https://cdn.piprapay.com/media/support/messenger.png',
                 'text' => 'Click here to chat via Messenger.'
             ],
             'support_email_address' => [
                 'url' => 'mailto:' . ($res['response'][0]['support_email_address'] ?? ''),
-                'image' => 'https://cdn.builderhall.com/assets/socialicon/gmail.png',
+                'image' => 'https://cdn.piprapay.com/media/support/email.png',
                 'text' => 'Click here to send us an email.'
             ],
             'support_phone_number' => [
                 'url' => 'tel:' . ($res['response'][0]['support_phone_number'] ?? ''),
-                'image' => 'https://cdn.builderhall.com/assets/socialicon/phone.png',
+                'image' => 'https://cdn.piprapay.com/media/support/call.avif',
                 'text' => 'Click here to call us.'
             ],
             'whatsapp_number' => [
                 'url' => $res['response'][0]['whatsapp_number'] ?? '',
-                'image' => 'https://cdn.builderhall.com/assets/socialicon/whatsapp.png',
+                'image' => 'https://cdn.piprapay.com/media/support/whatsapp.webp',
                 'text' => 'Chat with us on WhatsApp.'
             ],
             'facebook_page' => [
                 'url' => $res['response'][0]['facebook_page'] ?? '',
-                'image' => 'https://cdn.builderhall.com/assets/socialicon/facebook.png',
+                'image' => 'https://cdn.piprapay.com/media/support/facebook.webp',
                 'text' => 'Visit our Facebook page.'
             ],
             'telegram' => [
                 'url' => $res['response'][0]['telegram'] ?? '',
-                'image' => 'https://cdn.builderhall.com/assets/socialicon/telegram.png',
+                'image' => 'https://cdn.piprapay.com/media/support/telegram.webp',
                 'text' => 'Join us on Telegram.'
             ],
             'support_website' => [
                 'url' => $res['response'][0]['support_website'] ?? '',
-                'image' => 'https://cdn.builderhall.com/assets/socialicon/web.png',
+                'image' => 'https://cdn.piprapay.com/media/support/website.png',
                 'text' => 'Visit our website.'
             ],
             'youtube_channel' => [
                 'url' => $res['response'][0]['youtube_channel'] ?? '',
-                'image' => 'https://cdn.builderhall.com/assets/socialicon/youtube.png',
+                'image' => 'https://cdn.piprapay.com/media/support/youtube.png',
                 'text' => 'Subscribe to our YouTube channel.'
             ]
         ];
@@ -1380,5 +1380,24 @@ function convertDateTime($datetime, $daysToSubtract = 0, $newHour = null, $newMi
             return [ "status" => false, "response" => $data];
         }
     }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
 ?>
