@@ -64,6 +64,9 @@ Gateways are registered in `__PREFIX__plugins` with core columns:
 │  └─ icon.png              # 128×128 recommended
 └─ readme.txt               # Description / changelog
 ```
+You can use CLI Tool for Genarat plugin files. Use the command in you root dir of PipraPay. add a new empty file `pipra-cli.allow` for allow the cli operation.
+```php pipra-cli.php make:plugin:gateway my-gateway
+```
 
 ### `meta.json`
 

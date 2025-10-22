@@ -16,6 +16,9 @@ pp-content/plugins/modules/<plugin-slug>/
 +-- assets/icon.png         # 256x256 icon surfaced in the admin panel
 +-- other PHP/JS/CSS files  # Any module-specific code (IPN endpoints, utilities, etc.)
 ```
+You can use CLI Tool for Genarat plugin files. Use the command in you root dir of PipraPay. add a new empty file `pipra-cli.allow` for allow the cli operation.
+```php pipra-cli.php make:plugin:gateway my-gateway
+```
 
 ### `meta.json`
 The importer expects the following keys:
