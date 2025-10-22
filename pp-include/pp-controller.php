@@ -147,15 +147,23 @@
         return $currentDatetime->format($format);
     }    
 
-    function convertDateTime($datetime, $daysToSubtract = 2, $newHour = 11, $newMinute = 44) {
+function convertDateTime($datetime, $daysToSubtract = 0, $newHour = null, $newMinute = null) {
+    try {
         $date = new DateTime($datetime);
-    
-        $date->modify("-{$daysToSubtract} days");
-
-        $date->setTime($newHour, $newMinute);
-
-        return $date->format('Y-m-d h:i A');
+    } catch (Exception $e) {
+        return $datetime;
     }
+
+    if ($daysToSubtract !== 0) {
+        $date->modify(($daysToSubtract > 0 ? '-' : '+') . abs($daysToSubtract) . ' days');
+    }
+
+    if ($newHour !== null && $newMinute !== null) {
+        $date->setTime((int)$newHour, (int)$newMinute);
+    }
+
+    return $date->format('Y-m-d h:i A');
+}
     
     function extractPathAndQuery($url) {
         $parsedUrl = parse_url($url);
@@ -180,7 +188,7 @@
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || 
                      $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
     
-        $host = $_SERVER['HTTP_HOST'];         // e.g., dev.piprapay.com
+        $host = $_SERVER['HTTP_HOST'];         // e.g., dev.builderpay.com
         $requestUri = $_SERVER['REQUEST_URI']; // e.g., /admin/view-transaction?p=13
     
         return $protocol . $host . $requestUri;
@@ -1277,42 +1285,42 @@
         return [
             'facebook_messenger' => [
                 'url' => $res['response'][0]['facebook_messenger'] ?? '',
-                'image' => 'https://cdn.piprapay.com/media/support/messenger.png',
+                'image' => 'https://cdn.builderhall.com/assets/socialicon/messenger.png',
                 'text' => 'Click here to chat via Messenger.'
             ],
             'support_email_address' => [
                 'url' => 'mailto:' . ($res['response'][0]['support_email_address'] ?? ''),
-                'image' => 'https://cdn.piprapay.com/media/support/email.png',
+                'image' => 'https://cdn.builderhall.com/assets/socialicon/gmail.png',
                 'text' => 'Click here to send us an email.'
             ],
             'support_phone_number' => [
                 'url' => 'tel:' . ($res['response'][0]['support_phone_number'] ?? ''),
-                'image' => 'https://cdn.piprapay.com/media/support/call.avif',
+                'image' => 'https://cdn.builderhall.com/assets/socialicon/phone.png',
                 'text' => 'Click here to call us.'
             ],
             'whatsapp_number' => [
                 'url' => $res['response'][0]['whatsapp_number'] ?? '',
-                'image' => 'https://cdn.piprapay.com/media/support/whatsapp.webp',
+                'image' => 'https://cdn.builderhall.com/assets/socialicon/whatsapp.png',
                 'text' => 'Chat with us on WhatsApp.'
             ],
             'facebook_page' => [
                 'url' => $res['response'][0]['facebook_page'] ?? '',
-                'image' => 'https://cdn.piprapay.com/media/support/facebook.webp',
+                'image' => 'https://cdn.builderhall.com/assets/socialicon/facebook.png',
                 'text' => 'Visit our Facebook page.'
             ],
             'telegram' => [
                 'url' => $res['response'][0]['telegram'] ?? '',
-                'image' => 'https://cdn.piprapay.com/media/support/telegram.webp',
+                'image' => 'https://cdn.builderhall.com/assets/socialicon/telegram.png',
                 'text' => 'Join us on Telegram.'
             ],
             'support_website' => [
                 'url' => $res['response'][0]['support_website'] ?? '',
-                'image' => 'https://cdn.piprapay.com/media/support/website.png',
+                'image' => 'https://cdn.builderhall.com/assets/socialicon/web.png',
                 'text' => 'Visit our website.'
             ],
             'youtube_channel' => [
                 'url' => $res['response'][0]['youtube_channel'] ?? '',
-                'image' => 'https://cdn.piprapay.com/media/support/youtube.png',
+                'image' => 'https://cdn.builderhall.com/assets/socialicon/youtube.png',
                 'text' => 'Subscribe to our YouTube channel.'
             ]
         ];
@@ -1372,4 +1380,5 @@
             return [ "status" => false, "response" => $data];
         }
     }
+
 ?>
