@@ -1372,24 +1372,4 @@
             return [ "status" => false, "response" => $data];
         }
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
 ?>
