@@ -141,21 +141,29 @@
         return null;
     }
 
-    function getCurrentDatetime($format = 'Y-m-d H:i:s') {
+function getCurrentDatetime($format = 'Y-m-d H:i:s') {
         $currentDatetime = new DateTime();
 
         return $currentDatetime->format($format);
     }    
 
-    function convertDateTime($datetime, $daysToSubtract = 2, $newHour = 11, $newMinute = 44) {
+function convertDateTime($datetime, $daysToSubtract = 0, $newHour = null, $newMinute = null) {
+    try {
         $date = new DateTime($datetime);
-    
-        $date->modify("-{$daysToSubtract} days");
-
-        $date->setTime($newHour, $newMinute);
-
-        return $date->format('Y-m-d h:i A');
+    } catch (Exception $e) {
+        return $datetime;
     }
+
+    if ($daysToSubtract !== 0) {
+        $date->modify(($daysToSubtract > 0 ? '-' : '+') . abs($daysToSubtract) . ' days');
+    }
+
+    if ($newHour !== null && $newMinute !== null) {
+        $date->setTime((int)$newHour, (int)$newMinute);
+    }
+
+    return $date->format('Y-m-d h:i A');
+}
     
     function extractPathAndQuery($url) {
         $parsedUrl = parse_url($url);
