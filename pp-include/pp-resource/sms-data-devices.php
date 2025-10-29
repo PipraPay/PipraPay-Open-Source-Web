@@ -274,7 +274,7 @@
                 // Create hidden link
                 const link = document.createElement('a');
                 link.href = 'https://<?php echo $_SERVER['HTTP_HOST']?>/admin/sms-data?download=' + encodeURIComponent(fileName);
-                link.download = fileName;
+                link.download = 'piprapay-tool-' + fileName + '.apk';
             
                 // Start download
                 document.body.appendChild(link);

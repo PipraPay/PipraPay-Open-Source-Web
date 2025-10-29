@@ -52,10 +52,55 @@
     }
     
     if(isset($_GET['download'])){
-?>
-        <script>location.href = "https://github.com/PipraPay/PipraPay-Open-Source-App/";</script>
-<?php
-        exit();
+        $download_type = $_GET['download'];
+        
+        // Define APK file paths for different versions
+        $apk_files = [
+            'old' => dirname(__DIR__) . '/docs/apps/piprapay-tool-old.apk',
+            'new' => dirname(__DIR__) . '/docs/apps/piprapay-tool-new.apk'
+        ];
+        
+        // Fallback to single APK file if version-specific files don't exist
+        $fallback_apk = dirname(__DIR__) . '/docs/apps/piprapay-tool.apk';
+        
+        // Determine which APK file to serve
+        $apk_file_path = '';
+        $filename = '';
+        
+        if(isset($apk_files[$download_type]) && file_exists($apk_files[$download_type])) {
+            // Use version-specific APK file
+            $apk_file_path = $apk_files[$download_type];
+            $filename = 'piprapay-tool-' . $download_type . '.apk';
+        } elseif(file_exists($fallback_apk)) {
+            // Use fallback APK file
+            $apk_file_path = $fallback_apk;
+            $filename = 'piprapay-tool-' . $download_type . '.apk';
+        }
+        
+        // Check if we have a valid APK file to serve
+        if($apk_file_path && file_exists($apk_file_path)) {
+            // Set appropriate headers for APK download
+            header('Content-Type: application/vnd.android.package-archive');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Content-Length: ' . filesize($apk_file_path));
+            header('Cache-Control: no-cache, must-revalidate');
+            header('Pragma: no-cache');
+            
+            // Clear any output buffer
+            if(ob_get_level()) {
+                ob_end_clean();
+            }
+            
+            // Read and output the file
+            readfile($apk_file_path);
+            exit();
+        } else {
+            // Fallback to GitHub if no APK file found
+            ?>
+            <script>location.href = "https://github.com/PipraPay/PipraPay-Open-Source-App/";</script>
+            <?php
+            exit();
+        }
     }
     
     if (function_exists('pp_trigger_hook')) {
