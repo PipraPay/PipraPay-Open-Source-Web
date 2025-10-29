@@ -248,9 +248,6 @@
     ?>
             <script>
                 document.addEventListener('DOMContentLoaded', function() {
-                    // Show the success page (in case it was hidden)
-                    document.getElementById('success-page').style.display = 'block';
-                    
                     // Countdown functionality
                     let countdown = 4;
                     const countdownElement = document.getElementById('countdown');
