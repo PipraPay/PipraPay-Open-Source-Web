@@ -4,7 +4,7 @@
 
 The PipraPay Tool APK download system provides users with access to both old and new versions of the Android application directly from the admin panel. This guide explains how the download mechanism works and how to manage different APK versions.
 
-> **📝 Current Status (29 October 2024)**: All APK versions are currently identical. In the future, we will update the stable (Old) and new (Beta) versions to provide different functionality and features.
+> **📝 Current Status (29 October 2025)**: All APK versions are currently identical. In the future, we will update the stable (Old) and new (Beta) versions to provide different functionality and features.
 
 ## 🏗️ System Architecture
 
