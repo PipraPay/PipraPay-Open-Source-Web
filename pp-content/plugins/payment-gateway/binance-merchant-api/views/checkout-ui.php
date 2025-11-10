@@ -11,6 +11,67 @@
     $transaction_amount = convertToDefault($transaction_details['response'][0]['transaction_amount'], $transaction_details['response'][0]['transaction_currency'], $settings['currency']);
     $transaction_fee = safeNumber($settings['fixed_charge']) + ($transaction_amount * (safeNumber($settings['percent_charge']) / 100));
     $transaction_amount = $transaction_amount+$transaction_fee;
+    $binanceCheckoutData = null;
+    $binanceOrderParam = 'binance_order';
+
+    if (!function_exists('pp_binance_generate_signature')) {
+        /**
+         * Generate Binance Pay signature headers.
+         */
+        function pp_binance_generate_signature($payload, $apiSecret) {
+            $timestamp = round(microtime(true) * 1000);
+            $nonce = bin2hex(random_bytes(16));
+            $message = $timestamp . "\n" . $nonce . "\n" . $payload . "\n";
+            $rawSignature = hash_hmac('SHA512', $message, $apiSecret, true);
+            $signature = strtoupper(bin2hex($rawSignature));
+
+            return [$timestamp, $nonce, $signature];
+        }
+    }
+
+    if (!function_exists('pp_binance_generate_trade_no')) {
+        /**
+         * Generate a Binance compliant merchantTradeNo (<=32 chars, letters/digits only).
+         */
+        function pp_binance_generate_trade_no() {
+            return strtoupper(bin2hex(random_bytes(16))); // 32 hex characters
+        }
+    }
+
+    if (!function_exists('pp_remove_query_parameter')) {
+        /**
+         * Remove a single query parameter from the current URL while keeping everything else intact.
+         */
+        function pp_remove_query_parameter($url, $parameter) {
+            $parts = parse_url($url);
+            if ($parts === false) {
+                return $url;
+            }
+
+            $query = [];
+            if (!empty($parts['query'])) {
+                parse_str($parts['query'], $query);
+                unset($query[$parameter]);
+            }
+
+            $scheme   = $parts['scheme'] ?? 'https';
+            $host     = $parts['host'] ?? ($_SERVER['HTTP_HOST'] ?? '');
+            $port     = isset($parts['port']) ? ':' . $parts['port'] : '';
+            $path     = $parts['path'] ?? '';
+            $rebuilt  = $scheme . '://' . $host . $port . $path;
+            $newQuery = http_build_query($query);
+
+            if (!empty($newQuery)) {
+                $rebuilt .= '?' . $newQuery;
+            }
+
+            if (!empty($parts['fragment'])) {
+                $rebuilt .= '#' . $parts['fragment'];
+            }
+
+            return $rebuilt;
+        }
+    }
 ?>
 
 <!DOCTYPE html>
@@ -437,6 +498,49 @@
             border: 1px solid <?php echo $setting['response'][0]['primary_button_color'];?> !important;
             color: <?php echo $setting['response'][0]['button_text_color'];?> !important;
         }
+
+        .binance-checkout-card{
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            text-align: center;
+            background: #ffffff;
+        }
+
+        .binance-checkout-card h4{
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .binance-qr-wrapper{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .binance-qr-wrapper img{
+            width: 220px;
+            height: 220px;
+            object-fit: cover;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px;
+            background: #fff;
+        }
+
+        .binance-pay-btn{
+            margin-top: 1rem;
+            min-width: 220px;
+            border-radius: 30px;
+            padding: 0.9rem 1.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+        }
     </style>
 </head>
 <body>
@@ -459,19 +563,18 @@
             
             <div class="payment-form">
                   <?php
-                        if(isset($_GET['status'])){
-                            if($_GET['status'] == "success"){
-                                                                
+                        $sessionId = $_GET[$binanceOrderParam] ?? ($_GET['session_id'] ?? null);
+                        $statusFlag = $_GET['status'] ?? null;
+
+                        if(!empty($sessionId)){
+                                
                                 $apiKey = $settings['merchant_api_key'];
                                 $apiSecret = $settings['merchant_secret_key'];
-                                $merchantTradeNo = $_GET['session_id'] ?? ''; // Pass it in returnUrl as ?order_id=order_123456
+                                $merchantTradeNo = $sessionId;
                                 
                                 // Step 1: Prepare payload
-                                $payload = json_encode(['merchantTradeNo' => $merchantTradeNo]);
-                                $timestamp = round(microtime(true) * 1000);
-                                $nonce = bin2hex(random_bytes(16));
-                                $message = $timestamp . "\n" . $nonce . "\n" . $payload . "\n";
-                                $signature = hash_hmac('SHA512', $message, $apiSecret);
+                                $payload = json_encode(['merchantTradeNo' => $merchantTradeNo], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                                [$timestamp, $nonce, $signature] = pp_binance_generate_signature($payload, $apiSecret);
                                 
                                 // Step 2: Headers
                                 $headers = [
@@ -483,28 +586,48 @@
                                 ];
                                 
                                 // Step 3: Send query request
-                                $ch = curl_init("https://bpay.binanceapi.com/binancepay/openapi/order/query");
+                                $ch = curl_init("https://bpay.binanceapi.com/binancepay/openapi/v2/order/query");
                                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                                 curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
                                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                                curl_setopt($ch, CURLOPT_TIMEOUT, 60);
                                 $response = curl_exec($ch);
+                                $curlError = $response === false ? curl_error($ch) : null;
                                 curl_close($ch);
                                 
                                 $data = json_decode($response, true);
                                 
                                 // Step 4: Check result
                                 if ($data && $data['status'] === 'SUCCESS') {
-                                    $bizStatus = $data['data']['status']; // PAY_SUCCESS or others
+                                    $orderData = $data['data'] ?? [];
+                                    $bizStatus = $orderData['status'] ?? null; // PAY_SUCCESS or others
                                     if ($bizStatus === 'PAID' || $bizStatus === 'PAY_SUCCESS') {
-                                        $referenceGoodsId = $data['data']['goods']['referenceGoodsId'] ?? null;
+                                        $referenceGoodsId = $orderData['goods']['referenceGoodsId'] ?? null;
+
+                                        if (!$referenceGoodsId && !empty($orderData['passThroughInfo'])) {
+                                            $decodedPassThrough = json_decode($orderData['passThroughInfo'], true);
+                                            if (json_last_error() === JSON_ERROR_NONE && isset($decodedPassThrough['payment_id'])) {
+                                                $referenceGoodsId = $decodedPassThrough['payment_id'];
+                                            }
+                                        }
+
+                                        if (!$referenceGoodsId) {
+                                            $referenceGoodsId = $payment_id;
+                                        }
                                         
-                                        $transactionId = $data['data']['transactionId'] ?? $merchantTradeNo;
-                                        $payerAccount = $data['data']['payerAccount'] ?? 'Unknown';
+                                        $transactionId = $orderData['transactionId'] ?? $merchantTradeNo;
+                                        $payerAccount = $orderData['paymentInfo']['payerId'] ?? $orderData['payerAccount'] ?? 'Unknown';
 
                                         $check_transactionid = pp_check_transaction_exits($transactionId);
                                         if($check_transactionid['status'] == false){
                                             if(pp_set_transaction_byid($referenceGoodsId, $plugin_slug, $plugin_info['plugin_name'], $payerAccount, $transactionId, 'completed')){
-                                                echo '<script>location.href="'.pp_get_paymentlink($referenceGoodsId).'";</script>';
+                                                $cleanRedirect = pp_remove_query_parameter(getCurrentUrl(), $binanceOrderParam);
+                                                $cleanRedirect = pp_remove_query_parameter($cleanRedirect, 'session_id');
+                                                if (empty($cleanRedirect)) {
+                                                    $cleanRedirect = pp_get_paymentlink($referenceGoodsId);
+                                                }
+                                                $cleanRedirect = htmlspecialchars($cleanRedirect, ENT_QUOTES, 'UTF-8');
+                                                echo '<script>location.href="'.$cleanRedirect.'";</script>';
                                             }
                                         }else{
                    ?>
@@ -516,58 +639,97 @@
                                     } else {
                    ?>
                                     <div class="alert alert-danger" role="alert">
-                                      Transaction not completed yet <?php echo $bizStatus?>
+                                      Transaction not completed yet <?php echo htmlspecialchars($bizStatus ?? 'UNKNOWN', ENT_QUOTES, 'UTF-8')?>
                                     </div>
                    <?php
                                     }
                                 } else {
+                                    $errorMessage = $curlError ?: ($data['errorMessage'] ?? 'Unable to verify transaction at this time.');
+                                    $errorCode = $data['code'] ?? 'N/A';
                    ?>
                                     <div class="alert alert-danger" role="alert">
-                                      Transaction not valid or not found.
+                                      Transaction verification failed (<?php echo htmlspecialchars($errorCode, ENT_QUOTES, 'UTF-8')?>): <?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8')?>
                                     </div>
                    <?php
                                 }
-                            }else{
+                        }elseif(!empty($statusFlag)){
                    ?>
                                 <div class="alert alert-danger" role="alert">
-                                  Transaction <?php echo $_GET['status']?>
+                                  Transaction <?php echo htmlspecialchars($statusFlag, ENT_QUOTES, 'UTF-8')?>
                                 </div>
                    <?php
-                            }
                         }else{
                             $separator = (strpos(getCurrentUrl(), '?') !== false) ? '&' : '?';
                                                         
                             $apiKey = $settings['merchant_api_key'];
                             $apiSecret = $settings['merchant_secret_key'];
-                                                        
-                            $url = 'https://bpay.binanceapi.com/binancepay/openapi/order';
-                            
-                            // Generate unique order ID
-                            $merchantTradeNo = uniqid("order_");
+                            $url = 'https://bpay.binanceapi.com/binancepay/openapi/v3/order';
+
+                            // Generate unique order ID (32 alphanumeric characters as required by Binance)
+                            $merchantTradeNo = pp_binance_generate_trade_no();
+
+                            $allowedTerminalTypes = ['APP', 'WEB', 'WAP', 'MINI_PROGRAM', 'OTHERS'];
+                            $terminalType = strtoupper($settings['terminal_type'] ?? 'WEB');
+                            if(!in_array($terminalType, $allowedTerminalTypes, true)){
+                                $terminalType = 'WEB';
+                            }
+
+                            $sanitizeGoodsField = function ($value, $fallback, $maxLength = 120) {
+                                $value = trim((string)$value);
+                                if ($value === '') {
+                                    $value = $fallback;
+                                }
+                                $value = preg_replace('/["\\\\]/', '', $value);
+                                $value = preg_replace('/[\r\n]+/', ' ', $value);
+                                if(strlen($value) > $maxLength){
+                                    $value = substr($value, 0, $maxLength);
+                                }
+                                return $value;
+                            };
+
+                            $orderReference = $transaction_details['response'][0]['pp_id'] ?? $payment_id;
+                            $siteName = $setting['response'][0]['site_name'] ?? 'PipraPay';
+                            $goodsName = $sanitizeGoodsField($settings['display_name'] ?? $plugin_info['plugin_name'], 'Digital Goods', 120);
+                            $goodsDetail = $sanitizeGoodsField('Payment '.$orderReference.' via '.$siteName, $goodsName, 256);
+                            $passThroughPayload = json_encode([
+                                'payment_id' => $payment_id,
+                                'merchantTradeNo' => $merchantTradeNo
+                            ], JSON_UNESCAPED_SLASHES);
                             
                             // Order Data
                             $orderData = [
-                                'merchantTradeNo' => $merchantTradeNo,
-                                'orderAmount' => $transaction_amount, // Amount in USDT
-                                'currency' => $settings['payment_currency'],
-                                'goods' => [
-                                    'goodsType' => '01', // virtual
-                                    'goodsCategory' => 'D000',
-                                    'referenceGoodsId' => $payment_id,
-                                    'goodsName' => 'Product'
+                                'env' => [
+                                    'terminalType' => $terminalType
                                 ],
-                                'returnUrl' => getCurrentUrl() . $separator . "status=success&session_id=$merchantTradeNo",
-                                'cancelUrl' => getCurrentUrl() . $separator . "status=cancel"
+                                'merchantTradeNo' => $merchantTradeNo,
+                                'orderAmount' => (float)number_format((float)$transaction_amount, 8, '.', ''),
+                                'currency' => $settings['payment_currency'],
+                                'description' => $goodsDetail,
+                                'goodsDetails' => [
+                                    [
+                                        'goodsType' => '02', // Virtual goods
+                                        'goodsCategory' => 'Z000',
+                                        'referenceGoodsId' => $payment_id,
+                                        'goodsName' => $goodsName,
+                                        'goodsDetail' => $goodsDetail
+                                    ]
+                                ],
+                                'returnUrl' => getCurrentUrl() . $separator . $binanceOrderParam . "=" . rawurlencode($merchantTradeNo),
+                                'cancelUrl' => getCurrentUrl() . $separator . "status=cancel",
+                                'passThroughInfo' => $passThroughPayload
                             ];
+
+                            if (!empty($settings['sub_merchant_id'])) {
+                                $orderData['merchant'] = [
+                                    'subMerchantId' => $settings['sub_merchant_id']
+                                ];
+                            }
                             
                             // Convert payload to JSON
-                            $payload = json_encode($orderData);
+                            $payload = json_encode($orderData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                             
                             // Signature Generation
-                            $timestamp = round(microtime(true) * 1000);
-                            $nonce = bin2hex(random_bytes(16));
-                            $message = $timestamp . "\n" . $nonce . "\n" . $payload . "\n";
-                            $signature = hash_hmac('SHA512', $message, $apiSecret);
+                            [$timestamp, $nonce, $signature] = pp_binance_generate_signature($payload, $apiSecret);
                             
                             // Headers
                             $headers = [
@@ -583,25 +745,57 @@
                             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
                             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
                             $response = curl_exec($ch);
+                            $curlError = $response === false ? curl_error($ch) : null;
                             curl_close($ch);
                             
                             // Handle Response
                             $data = json_decode($response, true);
                             
                             if ($data && $data['status'] === 'SUCCESS') {
-                                $checkoutUrl = $data['data']['checkoutUrl'];
-                                echo '<script>location.href="'.$checkoutUrl.'"</script>';
+                                $binanceCheckoutData = [
+                                    'checkoutUrl' => $data['data']['checkoutUrl'] ?? '',
+                                    'deeplink' => $data['data']['deeplink'] ?? '',
+                                    'universalUrl' => $data['data']['universalUrl'] ?? '',
+                                    'qrcodeLink' => $data['data']['qrcodeLink'] ?? '',
+                                    'qrContent' => $data['data']['qrContent'] ?? ''
+                                ];
                             } else {
+                                $errorMessage = $curlError ?: ($data['errorMessage'] ?? $response);
+                                $errorCode = $data['code'] ?? '';
                   ?>
                                 <div class="alert alert-danger" role="alert">
-                                   <?php echo $response?>
+                                   Binance Pay error <?php echo htmlspecialchars($errorCode, ENT_QUOTES, 'UTF-8')?>: <?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8')?>
                                 </div>
                   <?php
                             }
                         }
                   ?>
             </div>
+            <?php if (!empty($binanceCheckoutData)): ?>
+                <div class="binance-checkout-card">
+                    <h4>Complete your Binance Pay order</h4>
+                    <p class="text-muted">Scan the QR code or tap the button below to open Binance Pay.</p>
+                    <div class="binance-qr-wrapper">
+                        <?php if (!empty($binanceCheckoutData['qrcodeLink'])): ?>
+                            <img src="<?php echo htmlspecialchars($binanceCheckoutData['qrcodeLink'], ENT_QUOTES, 'UTF-8'); ?>" alt="Binance Pay QR">
+                        <?php endif; ?>
+                    </div>
+                    <button type="button"
+                            class="btn btn-primary binance-pay-btn"
+                            id="binancePayCTA"
+                            data-checkout="<?php echo htmlspecialchars($binanceCheckoutData['checkoutUrl'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                            data-deeplink="<?php echo htmlspecialchars($binanceCheckoutData['deeplink'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                            data-universal="<?php echo htmlspecialchars($binanceCheckoutData['universalUrl'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                        <i class="fa fa-mobile-alt"></i>
+                        Continue in Binance Pay
+                    </button>
+                    <p class="text-muted" style="margin-top:0.75rem;font-size:0.85rem;">
+                        We will try to open the Binance app when available, otherwise you will be redirected to the secure web checkout.
+                    </p>
+                </div>
+            <?php endif; ?>
         </div>
         
         <div class="payment-footer">
@@ -614,5 +808,41 @@
 
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var payBtn = document.getElementById('binancePayCTA');
+            if (!payBtn) {
+                return;
+            }
+
+            payBtn.addEventListener('click', function () {
+                var checkoutUrl = this.dataset.checkout || '';
+                var deepLink = this.dataset.deeplink || '';
+                var universalUrl = this.dataset.universal || '';
+                var isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+
+                if (isMobile && universalUrl) {
+                    window.location.href = universalUrl;
+                    return;
+                }
+
+                if (isMobile && deepLink) {
+                    window.location.href = deepLink;
+                    if (checkoutUrl) {
+                        setTimeout(function () {
+                            window.location.href = checkoutUrl;
+                        }, 1200);
+                    }
+                    return;
+                }
+
+                if (checkoutUrl) {
+                    window.location.href = checkoutUrl;
+                } else if (universalUrl) {
+                    window.location.href = universalUrl;
+                }
+            });
+        });
+    </script>
 </body>
 </html>
