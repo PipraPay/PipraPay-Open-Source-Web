@@ -180,6 +180,44 @@
                     <div class="text-secondary mt-2"> </div>
                   </div>
                 </div>
+
+                <div class="row mb-4">
+                  <div class="col-sm-6">
+                    <label for="terminal_type" class="col-sm-12 col-form-label form-label">Terminal type</label>
+                    <div class="input-group">
+                        <?php
+                            $terminalType = strtoupper($settings['terminal_type'] ?? 'WEB');
+                            $terminalOptions = [
+                                'WEB' => 'WEB (desktop browser)',
+                                'WAP' => 'WAP (mobile browser)',
+                                'APP' => 'APP (native application)',
+                                'MINI_PROGRAM' => 'MINI_PROGRAM (Binance mini program)',
+                                'OTHERS' => 'OTHERS'
+                            ];
+                        ?>
+                        <select class="form-control" name="terminal_type" id="terminal_type">
+                            <?php foreach ($terminalOptions as $value => $label): ?>
+                                <option value="<?= $value ?>" <?= ($terminalType === $value) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($label) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="text-secondary mt-2">
+                        Matches <code>env.terminalType</code> in <a href="https://developers.binance.com/docs/binance-pay/api-order-create-v3" target="_blank" rel="noopener noreferrer">Binance Pay Order Create v3</a>.
+                    </div>
+                  </div>
+
+                  <div class="col-sm-6">
+                    <label for="sub_merchant_id" class="col-sm-12 col-form-label form-label">Sub-merchant ID (optional)</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="sub_merchant_id" id="sub_merchant_id" value="<?= htmlspecialchars($settings['sub_merchant_id'] ?? '') ?>">
+                    </div>
+                    <div class="text-secondary mt-2">
+                        Required only if Binance Pay classifies your account as a channel partner.
+                    </div>
+                  </div>
+                </div>
             </div>
             <!-- End Body -->
           </div>
