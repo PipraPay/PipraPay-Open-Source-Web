@@ -1,8 +1,8 @@
 <?php
 $plugin_meta = [
     'Plugin Name'       => 'Binance Merchant Api',
-    'Description'       => 'Accept Binance Merchant Api payments directly from customers. Perfect for freelancers and small businesses.',
-    'Version'           => '1.0.0',
+    'Description'       => 'Accept Binance Merchant API payments using the latest Binance Pay Order Create v3 endpoint.',
+    'Version'           => '1.1.0',
     'Author'            => 'PipraPay',
     'Author URI'        => 'https://piprapay.com/',
     'License'           => 'GPL-2.0+',

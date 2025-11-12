@@ -665,12 +665,111 @@
     }
   
     (function() {
-      localStorage.removeItem('hs_theme')
+      localStorage.removeItem('hs_theme');
+
+      const MOBILE_BREAKPOINT = 1200;
+      const SIDEBAR_STATE_KEY = 'hs_sidebar_mobile_state';
+      let storedState = localStorage.getItem(SIDEBAR_STATE_KEY);
+      if (storedState !== 'open' && storedState !== 'closed') {
+          storedState = 'closed';
+          localStorage.setItem(SIDEBAR_STATE_KEY, storedState);
+      }
+      let currentState = storedState;
+      let applyingStoredState = false;
+
+      const getTogglers = () => document.querySelectorAll('.navbar-aside-toggler');
+
+      function ensureSidebarState(targetState, persist = false) {
+        if (window.innerWidth >= MOBILE_BREAKPOINT) {
+          currentState = 'open';
+          if (persist) {
+            storedState = 'open';
+            localStorage.setItem(SIDEBAR_STATE_KEY, storedState);
+          }
+          return;
+        }
+
+        const toggler = document.querySelector('.navbar-aside-toggler');
+        if (!toggler) {
+          return;
+        }
+
+        if (targetState === 'closed' && currentState !== 'closed') {
+          applyingStoredState = true;
+          toggler.click();
+          currentState = 'closed';
+        } else if (targetState === 'open' && currentState !== 'open') {
+          applyingStoredState = true;
+          toggler.click();
+          currentState = 'open';
+        }
+
+        if (persist) {
+          storedState = targetState;
+          localStorage.setItem(SIDEBAR_STATE_KEY, storedState);
+        }
+      }
+
+      function applyStoredSidebarState() {
+        storedState = localStorage.getItem(SIDEBAR_STATE_KEY) === 'closed' ? 'closed' : 'open';
+        ensureSidebarState(storedState);
+      }
+
+      function handleToggleClick() {
+        if (window.innerWidth >= MOBILE_BREAKPOINT) {
+          return;
+        }
+
+        if (applyingStoredState) {
+          applyingStoredState = false;
+          return;
+        }
+
+        currentState = currentState === 'closed' ? 'open' : 'closed';
+        storedState = currentState;
+        localStorage.setItem(SIDEBAR_STATE_KEY, storedState);
+      }
+
+      function bindSidebarPersistence() {
+        getTogglers().forEach(btn => {
+          btn.addEventListener('click', handleToggleClick);
+        });
+      }
+
+      window.addEventListener('resize', () => {
+        applyStoredSidebarState();
+      });
+
+      const navContent = document.querySelector('.navbar-vertical-content');
+      if (navContent) {
+        navContent.addEventListener('click', function (event) {
+          const navLink = event.target.closest('a.nav-link');
+          if (!navLink || window.innerWidth >= MOBILE_BREAKPOINT) {
+            return;
+          }
+
+          if (navLink.hasAttribute('data-bs-toggle')) {
+            return;
+          }
+
+          setTimeout(() => ensureSidebarState('closed', true), 150);
+        });
+      }
+
+      window.hsApplyStoredSidebarState = applyStoredSidebarState;
+      window.hsCloseSidebarOnMobile = function (delay = 0) {
+        if (window.innerWidth >= MOBILE_BREAKPOINT) {
+          return;
+        }
+        setTimeout(() => ensureSidebarState('closed', true), delay);
+      };
 
       window.onload = function () {
-        new HSSideNav('.js-navbar-vertical-aside').init()
+        new HSSideNav('.js-navbar-vertical-aside').init();
+        bindSidebarPersistence();
+        applyStoredSidebarState();
       }
-    })()
+    })();
   </script>
 
   <script>
@@ -702,22 +801,20 @@
         })
       })()
     </script>
-    <input type="hidden" id="navbar-aside-toggler-value" value = "0">
+    <input type="hidden" id="navbar-aside-toggler-value" value="open">
     <script>
-        function checkDevice() {
-            if (window.innerWidth <= 600) {
-                var values = document.querySelector("#navbar-aside-toggler-value").value;
-                
-                if(values == 1){
-                   document.querySelector(".navbar-aside-toggler").click();
-                }else{
-                    document.querySelector("#navbar-aside-toggler-value").value = '1';
-                }
-            }
+    function checkDevice() {
+        if (typeof window.hsApplyStoredSidebarState === 'function') {
+            window.hsApplyStoredSidebarState();
         }
+    }
     
-        function load_content(page, url, nav_id, fromPopState = false) {
-            const cleanPath = url.split('?')[0];
+    function load_content(page, url, nav_id, fromPopState = false, suppressAutoClose = false) {
+        const cleanPath = url.split('?')[0];
+
+        if (!fromPopState && !suppressAutoClose && typeof window.hsCloseSidebarOnMobile === 'function') {
+            window.hsCloseSidebarOnMobile(50);
+        }
         
             document.querySelector('.progress').style.display = 'block';
             let progress = 0;
@@ -742,6 +839,10 @@
         
                 clearInterval(interval);
                 document.querySelector('.progress').style.display = 'none';
+
+                if (typeof window.hsCloseSidebarOnMobile === 'function' && !fromPopState && !suppressAutoClose) {
+                    window.hsCloseSidebarOnMobile(50);
+                }
         
                 checkDevice();
         
@@ -777,11 +878,11 @@
         <?php
             if(isset($_GET['name'])){
         ?>
-                load_content('Welcome','<?php echo extractPathAndQuery(getCurrentUrl());?>','nav-btn-<?php echo $_GET['name']?>');
+                load_content('Welcome','<?php echo extractPathAndQuery(getCurrentUrl());?>','nav-btn-<?php echo $_GET['name']?>', false, true);
         <?php
             }else{
         ?>
-                load_content('Dashboard','dashboard','nav-btn-dashboard');
+                load_content('Dashboard','dashboard','nav-btn-dashboard', false, true);
         <?php
             }
         ?>
